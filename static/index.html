@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>elysium</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --bg2: #141414;
+      --border: #222;
+      --dim: #444;
+      --text: #ccc;
+      --font: "JetBrains Mono", "Fira Mono", "Consolas", monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #555;
+    }
+
+    #status {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    #status.connected { color: #3a3; }
+    #status.error     { color: #a33; }
+
+    #scene-info {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      color: #555;
+      font-size: 12px;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    #scene-info .scene-title {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .turn {
+      margin-bottom: 20px;
+      animation: fadein 0.2s ease;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .speaker {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .dialogue {
+      color: #bbb;
+      white-space: pre-wrap;
+      padding-left: 12px;
+      border-left: 2px solid currentColor;
+    }
+
+    .turn-error {
+      color: #a33;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    #btn-reset {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 6px 16px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    #btn-reset:hover {
+      border-color: #555;
+      color: #888;
+    }
+
+    #btn-reset:active {
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>elysium</h1>
+  <span id="status">connecting…</span>
+</header>
+
+<div id="scene-info">
+  <div class="scene-title" id="scene-title"></div>
+  <div id="scene-setting"></div>
+  <div id="scene-opening" style="margin-top:4px; font-style:italic;"></div>
+</div>
+
+<div id="feed"></div>
+
+<footer>
+  <button id="btn-reset">reset</button>
+</footer>
+
+<script>
+  // -------------------------------------------------------------------------
+  // Config — backend URL auto-detected, override with ?backend=ws://…
+  // -------------------------------------------------------------------------
+  const params   = new URLSearchParams(location.search);
+  const backendWs   = params.get("backend")   || `ws://${location.host}/ws`;
+  const backendHttp = params.get("backendHttp") || `http://${location.host}`;
+
+  // -------------------------------------------------------------------------
+  // Speaker → color mapping (derived from name, consistent across reloads)
+  // -------------------------------------------------------------------------
+  const COLORS = [
+    "#4ec9b0", // teal
+    "#c586c0", // mauve
+    "#dcdcaa", // yellow
+    "#9cdcfe", // light blue
+    "#ce9178", // orange
+    "#6a9955", // green
+    "#569cd6", // blue
+    "#f44747", // red
+  ];
+
+  const colorCache = {};
+  let colorIndex = 0;
+
+  function colorFor(speaker) {
+    if (!colorCache[speaker]) {
+      colorCache[speaker] = COLORS[colorIndex % COLORS.length];
+      colorIndex++;
+    }
+    return colorCache[speaker];
+  }
+
+  // -------------------------------------------------------------------------
+  // DOM helpers
+  // -------------------------------------------------------------------------
+  const feed      = document.getElementById("feed");
+  const statusEl  = document.getElementById("status");
+  const sceneInfo = document.getElementById("scene-info");
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = cls || "";
+  }
+
+  function appendTurn(speaker, dialogue) {
+    const color = colorFor(speaker);
+    const div = document.createElement("div");
+    div.className = "turn";
+    div.innerHTML = `
+      <div class="speaker" style="color:${color}">${speaker}</div>
+      <div class="dialogue" style="border-color:${color}">${escapeHtml(dialogue)}</div>
+    `;
+    feed.appendChild(div);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function appendError(msg) {
+    const div = document.createElement("div");
+    div.className = "turn-error";
+    div.textContent = `[error: ${msg}]`;
+    feed.appendChild(div);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function clearFeed() {
+    feed.innerHTML = "";
+    Object.keys(colorCache).forEach(k => delete colorCache[k]);
+    colorIndex = 0;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  function showScene(title, setting, opening) {
+    document.getElementById("scene-title").textContent  = title   || "";
+    document.getElementById("scene-setting").textContent = setting || "";
+    document.getElementById("scene-opening").textContent = opening || "";
+    sceneInfo.style.display = (title || setting || opening) ? "block" : "none";
+  }
+
+  // -------------------------------------------------------------------------
+  // WebSocket
+  // -------------------------------------------------------------------------
+  let ws;
+  let reconnectTimer;
+
+  function connect() {
+    clearTimeout(reconnectTimer);
+    ws = new WebSocket(backendWs);
+
+    ws.onopen = () => {
+      setStatus("live", "connected");
+    };
+
+    ws.onmessage = (evt) => {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch { return; }
+
+      if (msg.type === "scene") {
+        showScene(msg.title, msg.setting, msg.opening);
+      } else if (msg.type === "turn") {
+        appendTurn(msg.speaker, msg.dialogue);
+      } else if (msg.type === "error") {
+        appendError(msg.message);
+      } else if (msg.type === "reset") {
+        clearFeed();
+      }
+    };
+
+    ws.onclose = () => {
+      setStatus("reconnecting…", "error");
+      reconnectTimer = setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => {
+      setStatus("error", "error");
+    };
+  }
+
+  connect();
+
+  // -------------------------------------------------------------------------
+  // Reset button
+  // -------------------------------------------------------------------------
+  document.getElementById("btn-reset").addEventListener("click", async () => {
+    try {
+      await fetch(`${backendHttp}/reset`, { method: "POST" });
+      clearFeed();
+    } catch (e) {
+      appendError("reset failed: " + e.message);
+    }
+  });
+</script>
+
+</body>
+</html>

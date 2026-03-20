@@ -1,0 +1,8 @@
+title: "The Bar"
+setting: "A dimly lit bar at the edge of the simulation. Neon flickers. Nobody ordered anything."
+opening: "The bartender looks up. Nobody speaks first."
+cast:
+  - personas/alpha.yaml
+  - personas/beta.yaml
+max_turns: 25
+turn_order: "round_robin"   # V3 changes this to "heartbeat"
