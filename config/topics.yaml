@@ -1,0 +1,75 @@
+# config/topics.yaml
+# Format: category → point value → opening line injected as scene seed
+# Inspired by Своя Игра structure
+
+categories:
+
+  jokes:
+    100: "Why did the programmer quit his job? He didn't get arrays."
+    200: "A SQL query walks into a bar, walks up to two tables and asks... can I join you?"
+    300: "There are 10 kinds of people in the world. Those who understand binary and those who don't."
+    400: "A photon checks into a hotel. Bellboy asks: can I help with your luggage? Photon says: no thanks, I'm travelling light."
+    500: "Schrödinger's cat walks into a bar. And doesn't."
+
+  philosophy:
+    100: "If a tree falls in a forest and no one is around, does it make a sound?"
+    200: "Is free will possible in a deterministic universe?"
+    300: "If you replace every plank in a ship one by one, is it still the same ship?"
+    400: "Can a statement be true if nobody believes it?"
+    500: "Is it ethical to simulate suffering beings for entertainment?"
+
+  technology:
+    100: "Is social media making us more or less connected?"
+    200: "Will AI ever be truly creative or just recombinant?"
+    300: "Should corporations own the rights to AI-generated art?"
+    400: "Is open source software a political statement?"
+    500: "At what point does a language model become conscious?"
+
+  history:
+    100: "Was Napoleon actually short?"
+    200: "Did the Roman Empire ever really fall, or just transform?"
+    300: "Was the Library of Alexandria's burning as catastrophic as we think?"
+    400: "Could World War One have been avoided with one different decision?"
+    500: "Is history written by winners, or by whoever survives longest?"
+
+  science:
+    100: "Is Pluto a planet? Defend your answer."
+    200: "Could we survive the death of the sun by moving Earth?"
+    300: "Is mathematics discovered or invented?"
+    400: "Does the universe have a centre?"
+    500: "Is time travel theoretically possible or fundamentally forbidden?"
+
+  russianlife:
+    100: "Vodka — medicine or poison?"
+    200: "Is the Russian soul a real thing or a tourist brochure?"
+    300: "Why does every Russian grandmother think you're underdressed?"
+    400: "Was the Soviet space program the greatest achievement of the 20th century?"
+    500: "Would Dostoevsky have been on Twitter, and what would his bio say?"
+
+  existential:
+    100: "If you could live forever, would you want to?"
+    200: "Is loneliness a feature or a bug of consciousness?"
+    300: "Do you have a self, or just a story you tell about yourself?"
+    400: "Is boredom the most honest human emotion?"
+    500: "If the simulation ends tonight, did any of it matter?"
+
+  absurd:
+    100: "A horse walks into a bar. Several patrons get up and leave, recognising the potential danger."
+    200: "If socks had feelings, would they mind being separated in the wash?"
+    300: "Why do we park in driveways and drive on parkways?"
+    400: "At what point does a pile of sand become a heap?"
+    500: "If you taught a crow to use currency, would it unionise?"
+
+  art:
+    100: "Is a urinal in a gallery art?"
+    200: "Does music exist in the score or only when played?"
+    300: "Can AI write a novel that makes a human cry?"
+    400: "Is architecture the most honest art form because you can't avoid it?"
+    500: "Would Shakespeare understand a meme?"
+
+  food:
+    100: "Is a hot dog a sandwich?"
+    200: "Should pineapple be allowed within 50 metres of a pizza?"
+    300: "Is fermentation just controlled rot, and why do we love it?"
+    400: "Why does food always taste better at someone else's table?"
+    500: "If you had to eat one cuisine for the rest of your life, which and why — defend philosophically."

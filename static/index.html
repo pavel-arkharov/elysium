@@ -68,6 +68,56 @@
       margin-bottom: 4px;
     }
 
+    #topic-bar {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10,10,10,0.96);
+      text-align: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    #topic-bar.visible {
+      display: flex;
+      animation: topic-in 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+    }
+
+    #topic-bar.hiding {
+      animation: topic-out 0.6s ease forwards;
+    }
+
+    #topic-headline {
+      font-size: clamp(32px, 8vw, 64px);
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    #topic-text {
+      font-size: clamp(13px, 2.5vw, 16px);
+      color: #777;
+      font-style: italic;
+      max-width: 580px;
+      line-height: 1.5;
+      padding: 0 24px;
+    }
+
+    @keyframes topic-in {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes topic-out {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(1.04); }
+    }
+
     #feed {
       flex: 1;
       overflow-y: auto;
@@ -139,15 +189,38 @@
 </head>
 <body>
 
+<div id="gate" style="
+  display:none;
+  position:fixed;inset:0;
+  background:#0d0d0d;
+  z-index:999;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  font-family:'JetBrains Mono','Fira Mono','Consolas',monospace;
+">
+  <div style="color:#444;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">elysium</div>
+  <input id="pin-input" type="password" placeholder="pin"
+    autocomplete="current-password"
+    style="
+      background:#111;border:1px solid #333;color:#ccc;
+      font-family:inherit;font-size:18px;
+      padding:10px 16px;width:160px;text-align:center;
+      outline:none;border-radius:2px;
+    "
+  />
+  <div id="pin-error" style="color:#a33;font-size:11px;height:14px;"></div>
+</div>
+
 <header>
   <h1>elysium</h1>
   <span id="status">connecting…</span>
 </header>
 
-<div id="scene-info">
-  <div class="scene-title" id="scene-title"></div>
-  <div id="scene-setting"></div>
-  <div id="scene-opening" style="margin-top:4px; font-style:italic;"></div>
+<div id="topic-bar">
+  <div id="topic-headline"></div>
+  <div id="topic-text"></div>
 </div>
 
 <div id="feed"></div>
@@ -158,11 +231,46 @@
 
 <script>
   // -------------------------------------------------------------------------
+  // PIN gate — set ELYSIUM_PIN to whatever you want
+  // -------------------------------------------------------------------------
+  const ELYSIUM_PIN = "elysium";   // ← change this
+
+  const gate = document.getElementById("gate");
+  const pinInput = document.getElementById("pin-input");
+  const pinError = document.getElementById("pin-error");
+
+  function unlock() {
+    gate.style.display = "none";
+    init();
+  }
+
+  if (localStorage.getItem("elysium_auth") === ELYSIUM_PIN) {
+    unlock();
+  } else {
+    gate.style.display = "flex";
+    pinInput.focus();
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      if (pinInput.value === ELYSIUM_PIN) {
+        localStorage.setItem("elysium_auth", ELYSIUM_PIN);
+        unlock();
+      } else {
+        pinError.textContent = "nope";
+        pinInput.value = "";
+        setTimeout(() => pinError.textContent = "", 1500);
+      }
+    });
+  }
+
+  function init() {
+
+  // -------------------------------------------------------------------------
   // Config — backend URL auto-detected, override with ?backend=ws://…
   // -------------------------------------------------------------------------
   const params   = new URLSearchParams(location.search);
-  const backendWs   = params.get("backend")   || `ws://${location.host}/ws`;
-  const backendHttp = params.get("backendHttp") || `http://${location.host}`;
+  const wsProto     = location.protocol === "https:" ? "wss" : "ws";
+  const backendWs   = params.get("backend")   || `${wsProto}://${location.host}/ws`;
+  const backendHttp = params.get("backendHttp") || `${location.protocol}//${location.host}`;
 
   // -------------------------------------------------------------------------
   // Speaker → color mapping (derived from name, consistent across reloads)
@@ -194,7 +302,6 @@
   // -------------------------------------------------------------------------
   const feed      = document.getElementById("feed");
   const statusEl  = document.getElementById("status");
-  const sceneInfo = document.getElementById("scene-info");
 
   function setStatus(text, cls) {
     statusEl.textContent = text;
@@ -231,14 +338,61 @@
     return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
 
-  function showScene(title, setting, opening) {
-    document.getElementById("scene-title").textContent  = title   || "";
-    document.getElementById("scene-setting").textContent = setting || "";
-    document.getElementById("scene-opening").textContent = opening || "";
-    sceneInfo.style.display = (title || setting || opening) ? "block" : "none";
+  const CATEGORY_COLORS = {
+    jokes:       "#dcdcaa",
+    philosophy:  "#c586c0",
+    technology:  "#4ec9b0",
+    history:     "#ce9178",
+    science:     "#9cdcfe",
+    russianlife: "#f44747",
+    existential: "#aaaaaa",
+    absurd:      "#6a9955",
+    art:         "#569cd6",
+    food:        "#d7ba7d",
+  };
+
+  // Russian display names for the big shout
+  const CATEGORY_RU = {
+    jokes:       "ШУТКИ",
+    philosophy:  "ФИЛОСОФИЯ",
+    technology:  "ТЕХНОЛОГИИ",
+    history:     "ИСТОРИЯ",
+    science:     "НАУКА",
+    russianlife: "РУССКАЯ ЖИЗНЬ",
+    existential: "ЭКЗИСТЕНЦИАЛ",
+    absurd:      "АБСУРД",
+    art:         "ИСКУССТВО",
+    food:        "ЕДА",
+  };
+
+  const topicBar = document.getElementById("topic-bar");
+
+  let topicHideTimer;
+
+  function showTopic(category, points, text) {
+    if (!text) return;
+    const color  = CATEGORY_COLORS[category] || "#888";
+    const nameRu = CATEGORY_RU[category] || category.toUpperCase();
+    const bangs  = "!".repeat(Math.floor(points / 100));
+
+    document.getElementById("topic-headline").textContent = `${nameRu} ЗА ${points}${bangs}`;
+    document.getElementById("topic-headline").style.color = color;
+    document.getElementById("topic-text").textContent = text;
+
+    clearTimeout(topicHideTimer);
+    topicBar.style.display = "flex";
+    topicBar.style.opacity = "1";
+    topicBar.style.animation = "topic-in 0.3s cubic-bezier(0.34,1.4,0.64,1) forwards";
+
+    topicHideTimer = setTimeout(() => {
+      topicBar.style.animation = "topic-out 0.6s ease forwards";
+      topicBar.addEventListener("animationend", () => {
+        topicBar.style.display = "none";
+      }, { once: true });
+    }, 3500);
   }
 
-  // -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
   // WebSocket
   // -------------------------------------------------------------------------
   let ws;
@@ -257,11 +411,17 @@
       try { msg = JSON.parse(evt.data); } catch { return; }
 
       if (msg.type === "scene") {
-        showScene(msg.title, msg.setting, msg.opening);
+        showTopic(msg.category, msg.points, msg.topic);
       } else if (msg.type === "turn") {
         appendTurn(msg.speaker, msg.dialogue);
       } else if (msg.type === "error") {
         appendError(msg.message);
+      } else if (msg.type === "cheers") {
+        const div = document.createElement("div");
+        div.style.cssText = "text-align:center;padding:24px 0;font-size:28px;letter-spacing:0.1em;animation:fadein 0.4s ease";
+        div.textContent = "🥃 CHEERS 🥃";
+        feed.appendChild(div);
+        feed.scrollTop = feed.scrollHeight;
       } else if (msg.type === "reset") {
         clearFeed();
       }
@@ -290,6 +450,8 @@
       appendError("reset failed: " + e.message);
     }
   });
+
+  } // end init()
 </script>
 
 </body>

@@ -1,4 +1,10 @@
+import re
 from schemas.action import AgentTurn
+
+
+def _is_end_signal(dialogue: str) -> bool:
+    """True only if [CHEERS] appears alone on a line — not quoted or inline."""
+    return any(re.fullmatch(r"\[END\]", line.strip()) for line in dialogue.splitlines())
 
 
 class Transcript:
@@ -39,8 +45,8 @@ class Transcript:
         return messages
 
     def contains_end_signal(self) -> bool:
-        """Check if any agent has signalled end of scene."""
-        return any("[END]" in turn.dialogue for turn in self._turns)
+        """Check if any agent has signalled end of scene via a standalone [CHEERS] line."""
+        return any(_is_end_signal(turn.dialogue) for turn in self._turns)
 
     def __len__(self) -> int:
         return len(self._turns)

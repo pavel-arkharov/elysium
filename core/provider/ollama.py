@@ -41,20 +41,26 @@ class OllamaProvider(BaseProvider):
 
         # Strip any stage directions the model may have added (e.g. *nods*)
         # Keep only the first continuous block of quoted or plain dialogue
-        dialogue = _clean_dialogue(content)
+        dialogue = _clean_dialogue(content, persona["name"])
 
         return AgentTurn(speaker=persona["name"], dialogue=dialogue)
 
 
-def _clean_dialogue(text: str) -> str:
-    """Remove leading/trailing stage directions wrapped in asterisks or parens."""
+def _clean_dialogue(text: str, speaker: str) -> str:
+    """Remove stage directions and any leading 'Speaker:' prefixes the model adds."""
     import re
-    # Strip lines that are purely stage directions: *action* or (action)
     lines = text.splitlines()
     cleaned = []
     for line in lines:
         stripped = line.strip()
+        # Drop pure stage direction lines: *action* or (action)
         if re.match(r"^\*[^*]+\*$", stripped) or re.match(r"^\([^)]+\)$", stripped):
             continue
-        cleaned.append(line)
+        # Strip all leading "Name: " repetitions the model may prepend
+        while re.match(rf"^{re.escape(speaker)}\s*:\s*", stripped, flags=re.IGNORECASE):
+            stripped = re.sub(rf"^{re.escape(speaker)}\s*:\s*", "", stripped, flags=re.IGNORECASE)
+        # Remove any inline [CHEERS] that appears mid-sentence (not as a standalone signal)
+        if stripped and stripped != "[CHEERS]":
+            stripped = re.sub(r"\[END\]", "", stripped).strip()
+        cleaned.append(stripped)
     return "\n".join(cleaned).strip()
