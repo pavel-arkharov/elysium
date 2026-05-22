@@ -1,83 +1,85 @@
 # Elysium
 
-A multi-agent dialogue simulator where LLM-powered characters talk to each other inside a shared scene — no human input required after setup.
-
-Each agent is defined entirely through a YAML persona file: name, backstory, speaking style, and which LLM provider to use. Drop them into a scene config, start the server, and watch the conversation unfold in a browser or terminal.
+**Autonomous multi-agent dialogue simulator exploring character emergence. Built with Python and FastAPI, supporting local (Ollama) and cloud (OpenAI) models with real-time WebSocket streaming.**
 
 ---
 
-## Why I built this
+## 🎭 The Project
 
-I wanted to explore how much of a believable character emerges from prompting alone, without any scripted dialogue or hard-coded behavior. The answer: quite a bit, especially when agents can read the full conversation history and respond to each other in context.
+Elysium is a zero-human-input conversation engine where LLM-powered personas interact within simulated scenes. Instead of scripted dialogue, characters emerge through rigorous system prompting and contextual awareness. Each agent reads the full conversation history and responds in character, leading to unpredictable and often profound dialogue.
 
-The secondary goal was an architecture that stays clean as complexity grows — so the turn routing, provider abstraction, and transcript are all separate layers designed to support future extensions (async agents, physical actions, narrator passes) without rewriting the core.
+## 🛠️ Technical Highlights
 
----
+### 1. Provider Abstraction (Strategy Pattern)
+The architecture decouples the core agent logic from specific LLM implementations. By using a `BaseProvider` interface, the system seamlessly switches between:
+- **Local Inference**: via Ollama (no API keys required).
+- **Cloud Scale**: via OpenAI.
+New providers can be added by simply subclassing `BaseProvider` and registering them in the `Agent` factory.
 
-## How it works
+### 2. Async-First Core
+Built on **Python 3.11+** and **FastAPI**, the engine is fully asynchronous. This ensures that long-running LLM completions do not block the WebSocket broadcast loop or the CLI renderer, providing a smooth real-time experience.
 
-1. You define one or more personas in YAML — each gets a system prompt, a provider (`ollama`, `openai`, or `anthropic`), and a model name.
-2. A scene config sets the location, opening line, and the cast.
-3. The `TurnRouter` walks through agents round-robin, feeding each the full conversation history formatted from their own perspective.
-4. Every turn is broadcast over WebSocket to connected browsers and appended to an in-memory transcript.
-5. Agents can signal end-of-scene by emitting `[END]` on a standalone line; otherwise the scene runs to `max_turns`.
+### 3. Shared Data Contracts
+All turns are serialized using **Pydantic** models (`AgentTurn`). This ensures a single source of truth for the data schema, shared across:
+- The `TurnRouter` (logic layer)
+- The `Transcript` (data layer)
+- The Web UI (presentation layer)
 
----
+### 4. Dynamic Scene Injection
+The `server.py` implements a Jeopardy-style topic system (`topics.yaml`). At the start of each scene, a random category and point value are selected, injecting a specific "seed" into the conversation to steer the agents' initial interaction.
 
-## Stack
+## 🏗️ Project Structure
 
-- **Python 3.11+** — async throughout (FastAPI + asyncio)
-- **Ollama** — local model inference, no API key needed for default setup
-- **FastAPI + WebSocket** — streaming turns to the browser in real time
-- **Pydantic** — typed turn schema (`AgentTurn`) shared across all layers
-- **YAML** — all scene and persona configuration, nothing hardcoded
-
----
-
-## Running it
-
-**Prerequisites:** Python 3.11+, [Ollama](https://ollama.com) running locally with at least one model pulled (e.g. `ollama pull llama3`).
-
-```bash
-pip install -r requirements.txt
-
-# Web interface (default)
-python server.py
-
-# CLI mode
-python main.py
-```
-
-Open `http://localhost:8000` — the scene starts automatically and streams each line as it's generated.
-
----
-
-## Project structure
-
-```
+```text
 config/
-  scene.yaml          # scene settings and cast list
-  personas/           # one YAML file per agent
+  scene.yaml          # Scene settings and initial cast
+  topics.yaml         # Dynamic conversation seeds (Jeopardy-style)
+  personas/           # Agent definitions (Name, Backstory, Provider)
 core/
-  agent.py            # wraps a persona + provider into a speaking agent
-  transcript.py       # append-only conversation buffer
-  turn_router.py      # decides whose turn it is and when to stop
-  provider/           # BaseProvider + Ollama / OpenAI / Anthropic adapters
+  agent.py            # Agent factory and logic
+  transcript.py       # Async-safe conversation buffer
+  turn_router.py      # Strategic turn management
+  provider/           # Strategy-based LLM adapters
 schemas/
-  action.py           # AgentTurn — the shared data contract
+  action.py           # Pydantic data contracts
 renderer/
-  cli.py              # Rich-based terminal renderer
-server.py             # FastAPI entrypoint, WebSocket broadcast
+  cli.py              # Rich-powered terminal UI
+server.py             # FastAPI/WebSocket entrypoint
 main.py               # CLI entrypoint
 ```
 
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.11+
+- [Ollama](https://ollama.com) (for local models, e.g., `llama3`)
+
+### Installation
+1. Clone the repo and enter the directory.
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Running the Simulation
+**Web Interface (Real-time Broadcast):**
+```bash
+python server.py
+```
+*Open `http://localhost:8000` to watch the conversation unfold.*
+
+**Terminal Mode:**
+```bash
+python main.py
+```
+
 ---
 
-## Extending it
+## 🧠 Design Philosophy
 
-The architecture is deliberately layered so extensions don't require rewriting existing code:
-
-- **New provider** — subclass `BaseProvider`, register in `agent.py`
-- **New turn logic** — subclass `TurnRouter` (e.g. priority-based, heartbeat)
-- **New fields on a turn** — extend `AgentTurn` in `schemas/action.py`
-- **New renderer** — consume `Transcript.turns()` however you like
+The core goal of Elysium was to explore **emergent behavior**. By moving away from hard-coded state machines and towards prompt-driven autonomy, the project demonstrates how much "believability" can be generated through pure LLM context management. The architecture was designed to be modular, allowing for future extensions like physical actions, narrator passes, and complex turn-routing logic without core refactoring.
